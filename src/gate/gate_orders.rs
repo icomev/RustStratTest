@@ -18,8 +18,8 @@ const ORDER_SIDE: &str = "buy";
 const CANCEL: &str = "ioc";
 
 
-const API_KEY: &[u8] = b"f148b05a23ae3deb2c01b1fae2ad90bc";
-const SECRET: &[u8] = b"79867bb850db0b5aac3776ef6752ff55f819462cfaf32ad5398749635c790884";
+const API_KEY: &[u8] = b"APIKEY";
+const SECRET: &[u8] = b"SQKEY";
 
 
 pub async fn keep_alive_transaction(gate_client: Arc<Client>) {
