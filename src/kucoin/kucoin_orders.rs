@@ -12,8 +12,8 @@ use std::time::Duration;
 extern crate base64;
 
 
-const API_KEY: &str = "6559e9bc66315b0001cdaa12";
-const API_SECRET: &str = "f74b8f7f-690e-4d2b-90d3-6af7429a8311";
+const API_KEY: &str = "APIKEY";
+const API_SECRET: &str = "SQKEY";
 const API_PASSPHRASE: &str = "Kolmder123!";
 const API_VERSION: &str = "2";
 
