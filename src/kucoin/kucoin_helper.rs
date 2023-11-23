@@ -7,10 +7,10 @@ use serde_json::Value;
 
 use crate::state::kucoin_state::KucoinState;
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct Contract {
     symbol: String,
-    multiplier: f64,
+    pub multiplier: f64,
     pub adjusted_prices: Option<Vec<f64>>, // Mark as optional
     pub num_contracts: Option<Vec<f64>>,   // Mark as optional
 }
@@ -42,9 +42,17 @@ pub async fn handle_ticker_update(message: &str, shared_state: Arc<KucoinState>)
 
     if let Some(symbol) = v["data"]["symbol"].as_str() {
         if let Some(last_price_str) = v["data"]["bestBidPrice"].as_str() {
-
             if let Ok(last_price) = last_price_str.parse::<f64>() {
-                shared_state.update_contract_details(symbol, last_price).await;
+                // Fetch contract_multiplier within a scoped block to drop the lock before await
+                let contract_multiplier = {
+                    let contracts = shared_state.contracts.lock();
+                    contracts.get(symbol)
+                        .map(|contract| contract.multiplier)
+                        .unwrap_or(1.0) // Default multiplier if not found
+                };
+
+                // MutexGuard is now dropped, safe to await
+                shared_state.update_contract_details(symbol, last_price, contract_multiplier).await;
             } else {
                 eprintln!("Failed to parse 'lastPrice' field as a floating-point number from string: {}", last_price_str);
             }
@@ -56,15 +64,17 @@ pub async fn fetch_contracts(client: Arc<Client>) -> Result<HashMap<String, Cont
     let url = "https://api-futures.kucoin.com/api/v1/contracts/active";
 
     let response = reqwest::get(url).await.map_err(FetchError::HttpRequestError)?;
-    
+
     if response.status().is_success() {
         let resp_body = response.text().await.map_err(FetchError::HttpRequestError)?;
+
         let parsed_response: Response = serde_json::from_str(&resp_body).map_err(FetchError::ParsingError)?;
 
         let mut contracts_map: HashMap<String, Contract> = HashMap::new();
         for contract in parsed_response.data {
             if contract.symbol.ends_with("USDTM") {
                 let mut contract_details = contract;
+
                 contract_details.adjusted_prices = None; // Initialize as None
                 contract_details.num_contracts = None;    // Initialize as None
                 contracts_map.insert(contract_details.symbol.clone(), contract_details);
@@ -76,6 +86,8 @@ pub async fn fetch_contracts(client: Arc<Client>) -> Result<HashMap<String, Cont
         Err(FetchError::RequestFailed(format!("Request failed with status: {}", response.status())))
     }
 }
+
+
 
 pub fn divide_symbols_into_groups(symbols: Vec<String>, group_count: usize) -> Vec<Vec<String>> {
     let mut groups: Vec<Vec<String>> = Vec::new();

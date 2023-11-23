@@ -3,6 +3,7 @@ use hmac::{Hmac, Mac, NewMac};
 use sha2::Sha256;
 use std::error::Error;
 use reqwest::Client;
+use std::sync::Arc;
 
 use reqwest::header::{HeaderMap, HeaderValue};
 use tokio::time::Instant;
@@ -11,20 +12,20 @@ use std::time::Duration;
 extern crate base64;
 
 
-const API_KEY: &str = "650ca0b96370400001546b1e";
-const API_SECRET: &str = "03976369-4291-47a7-8d94-03f17c2b1fed";
+const API_KEY: &str = "6559e9bc66315b0001cdaa12";
+const API_SECRET: &str = "f74b8f7f-690e-4d2b-90d3-6af7429a8311";
 const API_PASSPHRASE: &str = "Kolmder123!";
 const API_VERSION: &str = "2";
 
 const LEVERAGE: &str = "10";
 const SIDE: &str = "buy";
 const ORDER_TYPE: &str = "limit";
-const ORDER_MARKET: &str = "market";
+const TIME: &str = "IOC";
 
 const METHOD: &str = "POST";
 const ENDPOINT: &str = "/api/v1/orders";
 const API_ENDPOINT: &str = "https://api-futures.kucoin.com/api/v1/orders";
-const POOL_SIZE: usize = 50;
+
 
 
 
@@ -55,7 +56,7 @@ pub fn create_signature(timestamp_millis: &str, method: &str, endpoint: &str, pa
 }
 
 
-pub async fn keep_alive_connection(client: &Client) -> Result<i64, Box<dyn std::error::Error>> {
+pub async fn keep_alive_kucoin(client: Arc<Client>) -> Result<i64, Box<dyn std::error::Error + Send + Sync>> {
 
     loop {
         let timestamp_millis = SystemTime::now()
@@ -70,8 +71,8 @@ pub async fn keep_alive_connection(client: &Client) -> Result<i64, Box<dyn std::
             "side":"buy",
             "orderType":"limit",
             "symbol":"DOGEUSDTM",
-            "size":"50",
-            "price":"0.060",
+            "size":"10",
+            "price":"0.062",
             "timeInForce":"IOC",
             "leverage":"5"
         });
@@ -99,30 +100,42 @@ pub async fn keep_alive_connection(client: &Client) -> Result<i64, Box<dyn std::
         .send()
         .await?;
 
-        let response_text = response.text().await?;
-        println!("Response text: {}", response_text);
+        let _response_text = response.text().await?;
         sleep(Duration::from_secs(7)).await;  
     }
 }
 
 
 
-pub async fn execute_kucoin_order(client: &Client, currency_pair: String, adjusted_price: f64, size: i64) -> Result<i64, Box<dyn Error>> {
-    let start_time2 = Instant::now();
+pub async fn execute_kucoin_order(client: &Client, currency_pair: &str, adjusted_price: f64, size: i64) -> Result<i64, Box<dyn Error>> {
+    println!("bought amount {}", size);
+    println!("Price {}", adjusted_price);
 
     let timestamp_millis = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)?
         .as_millis()
         .to_string();
 
-    let client_oid = timestamp_millis; // Using the timestamp as clientOid
+    let client_oid = timestamp_millis;
 
 
-    let body = format!(
-        r#"{{"clientOid":"{}","side":"buy","symbol":"{}","type":"limit","timeInForce":"IOC","leverage":5,"size":{},"price":{}}}"#,
-        client_oid, currency_pair, size, adjusted_price
+
+
+
+        let body = format!(
+        r#"{{"clientOid":"{}","side":"{}","symbol":"{}USDTM","type":"{}","timeInForce":"{}","leverage":{},"size":{},"price":{}}}"#,
+        client_oid, SIDE, currency_pair, ORDER_TYPE, TIME, LEVERAGE, size, adjusted_price
     );
 
+
+/*
+
+    let body = format!(
+        r#"{{"clientOid":"{}","side":"{}","symbol":"{}USDTM","type":"{}","timeInForce":"{}","leverage":{},"size":{},"price":0.8200}}"#,
+        client_oid, SIDE, currency_pair, ORDER_TYPE, TIME, LEVERAGE, size
+    ); */
+
+    
     let sign = create_signature(&client_oid, "POST", "/api/v1/orders", &body);
 
     let mut mac = Hmac::<Sha256>::new_varkey(API_SECRET.as_bytes()).unwrap();
@@ -131,10 +144,6 @@ pub async fn execute_kucoin_order(client: &Client, currency_pair: String, adjust
     let passphrase_base64 = base64::encode(&passphrase_hash);
 
     let headers = get_request_headers(&sign, &client_oid, &passphrase_base64); // Clone and update headers
-
-    let duration2 = start_time2.elapsed();
-    println!("pre request time: {:?}", duration2);
-
 
     let start_time = Instant::now();
     let response = client.post(API_ENDPOINT)
@@ -146,16 +155,20 @@ pub async fn execute_kucoin_order(client: &Client, currency_pair: String, adjust
     let duration = start_time.elapsed();
     println!("Request duration: {:?}", duration);
 
+
     let response_text = response.text().await?;
-    println!("Response text: {}", response_text);
+    println!("Kucoin buy order response: {}", response_text);
 
     Ok(size)
 }
 
 
-pub async fn execute_sell_order(client: &Client, currency_pair: String, amount: f64) -> Result<(), Box<dyn Error>> {
+pub async fn execute_sell_order(client: &Client, currency_pair: &str, amount: f64) -> Result<(), Box<dyn Error>> {
 
-    
+    println!("qty sell '{}':", amount);
+    println!("symbol '{}':", currency_pair);
+
+
     let timestamp_millis = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .expect("Time went backwards")
@@ -190,7 +203,7 @@ pub async fn execute_sell_order(client: &Client, currency_pair: String, amount: 
         .await?;
 
     let response_text = response.text().await?;
-    println!("Response text: {}", response_text); // Print the response text
+    println!("Kucoin sell response text: {}", response_text); // Print the response text
 
     Ok(())
 }

@@ -14,7 +14,7 @@ use chrono::Utc;
 
 
 use crate::gate::gate_helper::handle_ticker_update;
-use crate::state::app_state::SharedState;
+use crate::state::gate_state::GateState;
 
 
 // Define your SubscribeMessage struct here if needed
@@ -27,7 +27,7 @@ struct SubscribeMessage {
 
 pub async fn connect_gate_websocket(
     url: &Url,
-    shared_state: Arc<SharedState>
+    shared_state: Arc<GateState>
 ) -> Result<(), Box<dyn Error>> {
     let (ws_stream, _) = connect_async(url).await?;
     println!("Connected to {}", url);

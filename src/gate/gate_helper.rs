@@ -9,7 +9,7 @@ use serde_json::Value;
 use serde::Serialize;
 
 
-use crate::state::app_state::SharedState;
+use crate::state::gate_state::GateState;
 
 
 #[derive(Deserialize, Debug)]
@@ -33,7 +33,7 @@ pub struct ContractDetails {
 //const INVESTMENT_CASH: f64 = 800.0;
 
 
-pub async fn handle_ticker_update(message: &str, shared_state: Arc<SharedState>) {
+pub async fn handle_ticker_update(message: &str, shared_state: Arc<GateState>) {
     if message.is_empty() {
         return;
     }

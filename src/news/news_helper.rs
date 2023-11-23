@@ -5,25 +5,6 @@ use std::sync::Arc;
 
 
 
-pub async fn cool_off_function(token: &str, last_processed: Arc<RwLock<(String, Instant)>>) -> bool {
-    {
-        let read_guard = last_processed.read().await;
-        let (last_token, time) = &*read_guard;
-        if token == last_token && time.elapsed() < Duration::from_secs(300) {  // 3 minutes cool-off
-            return false;
-        }
-    }
-    
-    {
-        let mut write_guard = last_processed.write().await;
-        *write_guard = (token.to_string(), Instant::now());
-    }
-    
-    true
-}
-
-
-
 pub async fn extract(s: &str) -> Option<String> {
     println!("Received Message: {}", s);
 
@@ -188,7 +169,6 @@ pub fn binance_us(s: &str) -> Option<String> {
     }
     None
 }
-
 
 
 pub async fn cool_off_function(token: &str, last_processed: Arc<RwLock<(String, Instant)>>) -> bool {
