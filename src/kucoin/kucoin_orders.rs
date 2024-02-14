@@ -14,7 +14,7 @@ extern crate base64;
 
 const API_KEY: &str = "APIKEY";
 const API_SECRET: &str = "SQKEY";
-const API_PASSPHRASE: &str = "Kolmder123!";
+const API_PASSPHRASE: &str = "xxxxx!";
 const API_VERSION: &str = "2";
 
 const LEVERAGE: &str = "10";
